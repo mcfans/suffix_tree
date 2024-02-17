@@ -10,6 +10,23 @@ enum CharData {
     Char(u8),
 }
 
+impl Ord for CharData {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        match (self, other) {
+            (CharData::None, CharData::None) => std::cmp::Ordering::Equal,
+            (CharData::None, CharData::Char(_)) => std::cmp::Ordering::Less,
+            (CharData::Char(_), CharData::None) => std::cmp::Ordering::Greater,
+            (CharData::Char(l), CharData::Char(r)) => l.cmp(r),
+        }
+    }
+}
+
+impl PartialOrd for CharData {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
 impl Display for CharData {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
@@ -119,13 +136,10 @@ impl Matrix {
     }
 
     pub fn sort_in_place(&mut self) {
-        println!("First line begin");
         self.sort_first_line();
-        println!("First line done");
 
         let mut ranges = self.calculate_same_group_range(0, None);
         
-        println!("First line range calculate done");
         for i in 1..self.lines.len() {
             ranges.par_iter().for_each(|range| {
                 self.sort_line(i, range.clone());
@@ -223,39 +237,38 @@ impl Matrix {
     }
 
     fn sort_first_line(&mut self) {
-        for i in 0..self.lines[0].len() {
-            for j in 0..self.lines[0].len() - 1 - i {
-                let left = self.lines[0][j];
-                let right = self.lines[0][j + 1];
-
-                match (left, right) {
-                    (CharData::Char(l), CharData::Char(r)) => {
-                        if l > r {
-                            self.swap_column(j, j + 1);
-                        }
-                    }
-                    _ => {}
-                }
-            }
-        }
+        self.sort_line(0, 0..self.lines[0].len())
     }
 
     fn sort_line(&self, line: usize, range: Range<usize>) {
-        let end = range.end;
         let start = range.start;
-        for i in 0..range.count() {
-            for j in start..end - i - 1 {
-                let left = self.lines[line][j];
-                let right = self.lines[line][j + 1];
 
-                match (left, right) {
-                    (CharData::Char(l), CharData::Char(r)) => {
-                        if l > r {
-                            self.swap_column(j, j + 1);
-                        }
-                    }
-                    _ => {}
-                }
+        let len = range.len();
+        if range.len() < 2 {
+            return;
+        }
+        for i in (0..=len / 2 - 1).rev() {
+            self.max_heapify(line, start, i, len - 1);
+        }
+        for i in (1..=len - 1).rev() {
+            self.swap_column(start, i + start);
+            self.max_heapify(line, start, 0, i - 1);
+        }
+    }
+
+    fn max_heapify(&self, line: usize, offset: usize, pos: usize, end: usize) {
+        let mut dad = pos;
+        let mut son = dad * 2 + 1;
+        while son <= end {
+            if son < end && self.lines[line][offset + son] < self.lines[line][offset + son + 1] {
+                son += 1;
+            }
+            if self.lines[line][offset + dad] > self.lines[line][offset + son] {
+                return;
+            } else {
+                self.swap_column(dad + offset, son + offset);
+                dad = son;
+                son = dad * 2 + 1;
             }
         }
     }

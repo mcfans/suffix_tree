@@ -1,24 +1,34 @@
-use core::arch::aarch64::vld1q_u8_x3;
-use std::{ptr, arch::aarch64::{vld1q_u8, vld1q_dup_u32, vceqq_u8, vceqq_u32, vreinterpretq_u32_u8, vget_lane_u64, vgetq_lane_u64, vreinterpretq_u64_s32, vreinterpretq_u64_u32, uint32x4_t, vgetq_lane_u32, vclzq_u32, vreinterpretq_p128_u32}};
-use suffix_tree::check_contains;
-
-
-fn main() -> Result<(), &'static str> {
-    let mut args = std::env::args();
-    let pattern = args.nth(1).ok_or("123")?;
-    let text = args.nth(0).ok_or("234")?;
-
-    println!("{}", pattern);
-
-    let mut res = 0;
-    for _ in 0..100000000 {
-        res = check_contains(&pattern, &text);
+fn max_heapify<T: Ord + Copy>(data: &mut [T], pos: usize, end: usize) {
+    let mut dad = pos;
+    let mut son = dad * 2 + 1;
+    while son <= end {
+        if son < end && data[son] < data[son + 1] {
+            son += 1;
+        }
+        if data[dad] > data[son] {
+            return;
+        } else {
+            data.swap(dad, son);
+            dad = son;
+            son = dad * 2 + 1;
+        }
     }
-    println!("{}", res);
-    Ok(())
-    // let mut res = 0;
-    // for i in 0..1000000000 {
-        // res = check_contains("abcd", "badcabcdbadcbadcbadcabcebadcbadcbadcabcebadcbadc");
-    // }
-    // println!("{}", res);
+}
+
+fn heap_sort<T:Ord+Copy>(data: &mut[T]) {
+    let len = data.len();
+    for i in (0..=len / 2 - 1).rev() {
+        max_heapify(data, i, len - 1);
+    }
+    for i in (1..=len - 1).rev() {
+        data.swap(0, i);
+        max_heapify(data, 0, i - 1);
+    }
+}
+
+fn main() {
+    let mut nums = vec![9, 2, 1, 7, 6, 8, 5, 3, 4];
+    heap_sort(nums.as_mut_slice());
+
+    println!("{:?}", nums);
 }

@@ -6,7 +6,7 @@ fn criterion_benchmark(c: &mut Criterion) {
     let mut test_array = vec![];
 
     let mut rng = rand::thread_rng();
-    for i in 0i64..1_000_00i64 {
+    for i in 0i64..1_000_000_00i64 {
         let rand_len: u32 = rng.gen();
         let len = rand_len % 12;
         let len = len + 4;
