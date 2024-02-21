@@ -346,10 +346,12 @@ impl Matrix {
     }
 }
 
+#[derive(Debug)]
 pub struct SuffixMatcher {
     nodes: Vec<Node>,
 }
 
+#[derive(Debug)]
 pub struct ExactMatcher {
     nodes: Vec<Node>,
 }
