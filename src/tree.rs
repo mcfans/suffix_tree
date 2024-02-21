@@ -350,6 +350,10 @@ pub struct SuffixMatcher {
     nodes: Vec<Node>,
 }
 
+pub struct ExactMatcher {
+    nodes: Vec<Node>,
+}
+
 const MASK: u128 = 0x1 << 127;
 
 impl SuffixMatcher {
@@ -374,6 +378,35 @@ impl SuffixMatcher {
                 current_node =  &self.nodes[current_range_start + pos as usize];
             } else {
                 break;
+            }
+        }
+
+        current_node.payload
+    }
+}
+
+impl ExactMatcher {
+    pub fn new(nodes: Vec<Node>) -> ExactMatcher {
+        ExactMatcher { nodes }
+    }
+
+    pub fn find(&self, query: &str) -> Option<i64> {
+        let bytes_iter = query.bytes().rev();
+
+        let mut current_node = self.nodes.first().unwrap();
+
+        for c in bytes_iter {
+            let table = current_node.table;
+            let moved = table << (127 - c);
+            let first_bit = moved & MASK;
+
+            if first_bit == MASK {
+                let pos = moved.count_ones() - 1;
+                let current_range_start = current_node.range_start;
+                // println!("Finding char {} at relative position {} absolute position {}", c as char, pos, current_range_start + pos as usize);
+                current_node =  &self.nodes[current_range_start + pos as usize];
+            } else {
+                return None;
             }
         }
 
