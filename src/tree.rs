@@ -460,6 +460,7 @@ impl ExactMatcher {
 
 // keyword google
 // match www.google.com
+#[derive(Debug)]
 pub struct KeywordMatcher {
     nodes: Vec<Node>,
 }
