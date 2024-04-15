@@ -574,6 +574,73 @@ mod test {
     #[test]
     fn test_keyword_matcher() {
         let data = vec![(1, "apple"), (2, "google")];
+3	abematv.akamaized.net
+13	avoddashs
+39	bbcfmt
+40	uk-live
+61	voddazn
+110	hbogoasia
+147	jooxweb-api
+149	japonx
+150	japronx
+175	nowtv100
+176	rthklive
+181	apiproxy-device-prod-nlb-
+182	dualstack.apiproxy-
+183	netflixdnstest
+206	nivod
+217	olevod
+226	openai
+251	-spotify-
+252	spotify.com
+264	tiktokcdn
+274	ttvnw
+293	youtube
+336	1e100
+337	abema
+338	appledaily
+339	avtb
+340	beetalk
+341	blogspot
+342	dropbox
+343	facebook
+344	fbcdn
+345	github
+346	gmail
+347	google
+348	instagram
+349	porn
+350	sci-hub
+351	spotify
+352	telegram
+353	twitter
+354	whatsapp
+355	youtube
+468	uk-live
+543	1drv
+544	onedrive
+545	skydrive
+555	porn
+609	ttvnw
+676	gmail
+785	360buy
+786	alicdn
+787	alimama
+788	alipay
+789	appzapp
+790	baidupcs
+791	bilibili
+792	ccgslb
+793	chinacache
+794	duobao
+795	jdpay
+796	moke
+797	qhimg
+798	vpimg
+799	xiami
+800	xiaomi
+1365	1drv
+1366	microsoft
         let mapped: Vec<(i64, String)> = data.iter().map(|i| (i.0, i.1.to_string())).collect();
 
         let mut matrix = super::Matrix::new(&mapped);
