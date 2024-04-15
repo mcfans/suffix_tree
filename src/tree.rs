@@ -1,5 +1,8 @@
 use std::{
-    collections::HashMap, fmt::{Display, Write}, ops::Range, vec
+    collections::HashMap,
+    fmt::{Display, Write},
+    ops::Range,
+    vec,
 };
 
 use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
@@ -7,6 +10,7 @@ use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum CharData {
     None,
+    End,
     Char(u8),
 }
 
@@ -14,6 +18,11 @@ impl Ord for CharData {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
         match (self, other) {
             (CharData::None, CharData::None) => std::cmp::Ordering::Equal,
+            (CharData::None, CharData::End) => std::cmp::Ordering::Less,
+            (CharData::End, CharData::None) => std::cmp::Ordering::Greater,
+            (CharData::End, CharData::Char(_)) => std::cmp::Ordering::Less,
+            (CharData::Char(_), CharData::End) => std::cmp::Ordering::Greater,
+            (CharData::End, CharData::End) => std::cmp::Ordering::Equal,
             (CharData::None, CharData::Char(_)) => std::cmp::Ordering::Less,
             (CharData::Char(_), CharData::None) => std::cmp::Ordering::Greater,
             (CharData::Char(l), CharData::Char(r)) => l.cmp(r),
@@ -31,6 +40,7 @@ impl Display for CharData {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             CharData::None => f.write_str("None"),
+            CharData::End => f.write_str("End "),
             CharData::Char(c) => f.write_fmt(format_args!("{}   ", *c as char)),
         }
     }
@@ -87,13 +97,14 @@ impl Matrix {
             id_line.push(pair.0);
 
             let content = &pair.1;
-            if content.len() > lines.len() {
-                lines.resize_with(content.len(), || vec![CharData::None; len]);
+            if content.len() + 1 > lines.len() {
+                lines.resize_with(content.len() + 1, || vec![CharData::None; len]);
             }
 
             for (i, c) in content.bytes().rev().enumerate() {
                 lines[i][idx] = CharData::Char(c);
             }
+            lines[content.len()][idx] = CharData::End;
         }
 
         let line_count = lines.len();
@@ -139,7 +150,7 @@ impl Matrix {
         self.sort_first_line();
 
         let mut ranges = self.calculate_same_group_range(0, None);
-        
+
         for i in 1..self.lines.len() {
             ranges.par_iter().for_each(|range| {
                 self.sort_line(i, range.clone());
@@ -173,11 +184,36 @@ impl Matrix {
                             (CharData::None, CharData::None) => {
                                 start = i;
                             }
+                            (CharData::None, CharData::End) => {
+                                result_for_this_range.push(start..i);
+                                start = i;
+                                current_char = self.lines[line][i];
+                            }
+                            (CharData::End, CharData::None) => {
+                                result_for_this_range.push(start..i);
+                                start = i;
+                                current_char = self.lines[line][i];
+                            }
+                            (CharData::End, CharData::End) => {
+                                result_for_this_range.push(start..i);
+                                start = i;
+                                current_char = self.lines[line][i];
+                            }
+                            (CharData::End, CharData::Char(_)) => {
+                                result_for_this_range.push(start..i);
+                                start = i;
+                                current_char = self.lines[line][i];
+                            }
                             (CharData::None, CharData::Char(_)) => {
                                 start = i;
                                 current_char = self.lines[line][i];
                             }
                             (CharData::Char(_), CharData::None) => {
+                                result_for_this_range.push(start..i);
+                                start = i;
+                                current_char = self.lines[line][i];
+                            }
+                            (CharData::Char(_), CharData::End) => {
                                 result_for_this_range.push(start..i);
                                 start = i;
                                 current_char = self.lines[line][i];
@@ -226,6 +262,9 @@ impl Matrix {
                             start = i;
                             current_char = self.lines[line][i];
                         }
+                    }
+                    _ => {
+                        unreachable!("After none should not call")
                     }
                 }
             }
@@ -316,13 +355,12 @@ impl Matrix {
                                 represent: child.clone(),
                                 location: result.len() - 1,
                             });
-                        } else {
+                        } else if let CharData::End = char {
                             // This is a node where itself is a end of a string but it also the parent of other nodes
-                            // ab.apple.com b.apple.com  
+                            // ab.apple.com b.apple.com
                             // b
                             let payload = self.id_line[child.start];
                             result[need_update_range.location].payload = Some(payload);
-                            // println!("Stored payload {} at {}", payload, need_update_range.location);
                         }
                     }
 
@@ -367,6 +405,7 @@ impl SuffixMatcher {
         let bytes_iter = query.bytes().rev();
 
         let mut current_node = self.nodes.first().unwrap();
+        let mut current_matched: Option<i64> = None;
 
         for c in bytes_iter {
             let table = current_node.table;
@@ -377,13 +416,16 @@ impl SuffixMatcher {
                 let pos = moved.count_ones() - 1;
                 let current_range_start = current_node.range_start;
                 // println!("Finding char {} at relative position {} absolute position {}", c as char, pos, current_range_start + pos as usize);
-                current_node =  &self.nodes[current_range_start + pos as usize];
+                current_node = &self.nodes[current_range_start + pos as usize];
+                if current_node.payload.is_some() {
+                    current_matched = current_node.payload;
+                }
             } else {
                 break;
             }
         }
 
-        current_node.payload
+        current_matched
     }
 }
 
@@ -406,7 +448,7 @@ impl ExactMatcher {
                 let pos = moved.count_ones() - 1;
                 let current_range_start = current_node.range_start;
                 // println!("Finding char {} at relative position {} absolute position {}", c as char, pos, current_range_start + pos as usize);
-                current_node =  &self.nodes[current_range_start + pos as usize];
+                current_node = &self.nodes[current_range_start + pos as usize];
             } else {
                 return None;
             }
@@ -485,5 +527,6 @@ mod test {
         let matcher = super::SuffixMatcher { nodes: tree };
 
         assert_eq!(Some(8), matcher.find("cn.apple.com"));
+        assert_eq!(Some(1), matcher.find("weather.apple.com"));
     }
 }
