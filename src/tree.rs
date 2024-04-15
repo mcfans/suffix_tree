@@ -458,6 +458,46 @@ impl ExactMatcher {
     }
 }
 
+// keyword google
+// match www.google.com
+pub struct KeywordMatcher {
+    nodes: Vec<Node>,
+}
+
+impl KeywordMatcher {
+    pub fn new(nodes: Vec<Node>) -> KeywordMatcher {
+        KeywordMatcher { nodes }
+    }
+
+    pub fn find(&self, query: &str) -> Option<i64> {
+        let bytes_iter = query.bytes().rev();
+
+        let mut current_node = self.nodes.first().unwrap();
+        let mut last_match = None;
+
+        for c in bytes_iter {
+            let table = current_node.table;
+            let moved = table << (127 - c);
+            let first_bit = moved & MASK;
+
+            if first_bit == MASK {
+                let pos = moved.count_ones() - 1;
+                let current_range_start = current_node.range_start;
+                current_node = &self.nodes[current_range_start + pos as usize];
+                last_match = current_node.payload;
+            } else {
+                if last_match.is_some() {
+                    continue;
+                }
+                last_match = None;
+                current_node = self.nodes.first().unwrap();
+            }
+        }
+
+        last_match
+    }
+}
+
 #[derive(Debug)]
 pub struct Node {
     table: u128,
@@ -528,5 +568,23 @@ mod test {
 
         assert_eq!(Some(8), matcher.find("cn.apple.com"));
         assert_eq!(Some(1), matcher.find("weather.apple.com"));
+    }
+
+    #[test]
+    fn test_keyword_matcher() {
+        let data = vec![(1, "apple"), (2, "google")];
+        let mapped: Vec<(i64, String)> = data.iter().map(|i| (i.0, i.1.to_string())).collect();
+
+        let mut matrix = super::Matrix::new(&mapped);
+        matrix.sort_in_place();
+        println!("{}", matrix);
+
+        let tree = matrix.build_tree();
+        let matcher = super::KeywordMatcher { nodes: tree };
+
+        assert_eq!(Some(1), matcher.find("weather.apple.com"));
+        assert_eq!(Some(1), matcher.find("cn.apple.com"));
+        assert_eq!(None, matcher.find("appl"));
+        assert_eq!(Some(2), matcher.find("www.google.com"));
     }
 }
