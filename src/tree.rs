@@ -151,12 +151,15 @@ impl Matrix {
 
         let mut ranges = self.calculate_same_group_range(0, None);
 
-        for i in 1..self.lines.len() {
-            ranges.par_iter().for_each(|range| {
-                self.sort_line(i, range.clone());
-            });
-            ranges = self.calculate_same_group_range(i, Some(ranges));
-        }
+        let pool = rayon::ThreadPoolBuilder::default().build().unwrap();
+        pool.install(|| {
+            for i in 1..self.lines.len() {
+                ranges.par_iter().for_each(|range| {
+                    self.sort_line(i, range.clone());
+                });
+                ranges = self.calculate_same_group_range(i, Some(ranges));
+            }
+        });
     }
 
     fn calculate_same_group_range(
